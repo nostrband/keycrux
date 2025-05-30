@@ -1,0 +1,5 @@
+build
+instance
+node_modules
+*.tar
+*.key
