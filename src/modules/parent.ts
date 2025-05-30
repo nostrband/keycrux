@@ -24,7 +24,11 @@ export async function getInfo(parentUrl: string) {
       );
       // return null to retry on timeout,
       // 20sec timeout to fetch outbox relays
-      const timer = setTimeout(() => ok(null), 20000);
+      const timer = setTimeout(() => {
+        ws.close();
+        ok(null)
+      }, 20000);
+
       ws.onmessage = (ev) => {
         clearTimeout(timer);
         const data = ev.data.toString("utf8");
@@ -58,6 +62,8 @@ export async function getInfo(parentUrl: string) {
         } catch (e: any) {
           console.log("parent reply error", e, data);
           err(e.message || e.toString());
+        } finally {
+          ws.close();
         }
       };
     };

@@ -47,7 +47,7 @@ class ParentServer {
     if (!validateEvent(build) || !verifyEvent(build))
       throw new Error("Invalid build.json");
     if (!validateEvent(instance) || !verifyEvent(instance))
-      throw new Error("Invalid build.json");
+      throw new Error("Invalid instance.json");
 
     return { build, instance };
   }

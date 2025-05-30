@@ -272,7 +272,7 @@ export async function fetchFromRelays(
     .flat();
   const ids = new Set<string>();
   const uniq = events.filter((e) => {
-    const has = !ids.has(e.id);
+    const has = ids.has(e.id);
     ids.add(e.id);
     return !has;
   });

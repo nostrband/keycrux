@@ -62,8 +62,8 @@ export class Server {
         break;
       case "set":
         valid = !!req.params.attestation && typeof req.params.attestation === "string"
-          && !!req.params.data && typeof req.params.attestation === "string"
-          && req.params.attestation.length < MAX_DATA_LENGTH;
+          && !!req.params.data && typeof req.params.data === "string"
+          && req.params.data.length < MAX_DATA_LENGTH;
         break;
       default:
         valid = true;

@@ -1,8 +1,9 @@
+import { nsmInit } from "../modules/nsm";
+
 // run ASAP to override crypto.getRandomValues
 nsmInit();
 
 import { WebSocket } from "ws";
-import { nsmInit } from "../modules/nsm";
 import { startEnclave } from ".";
 
 // @ts-ignore
