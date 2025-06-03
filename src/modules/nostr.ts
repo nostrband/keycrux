@@ -120,7 +120,7 @@ export async function publishInstance(
     pubkey,
     kind: KIND_INSTANCE,
     created_at: now(),
-    content: "",
+    content: "Keycrux: key storage service for enclaved services",
     tags: [
       ["r", REPO],
       ["name", pkg.name],

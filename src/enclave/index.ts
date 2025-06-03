@@ -28,7 +28,7 @@ class KeycruxServer extends Server {
     super(signer);
   }
 
-  private parse(attestation: string) {
+  private parse(attestation: string, pubkey: string) {
     if (process.env["TEST"] === "true") {
       return {
         public_key: new Uint8Array(),
@@ -38,7 +38,7 @@ class KeycruxServer extends Server {
 
       };
     } else {
-      return this.validator.parseValidateAttestation(attestation);
+      return this.validator.parseValidateAttestation(attestation, pubkey);
     }
   }
 
@@ -56,7 +56,7 @@ class KeycruxServer extends Server {
   }
 
   protected async get(req: Request, res: Reply): Promise<void> {
-    const info = await this.parse(req.params.attestation);
+    const info = await this.parse(req.params.attestation, req.pubkey);
     const key = this.key(info);
     if (this.data.has(key)) {
       res.result = this.data.get(key)!.data;
@@ -72,7 +72,7 @@ class KeycruxServer extends Server {
   }
 
   protected async set(req: Request, res: Reply): Promise<void> {
-    const info = await this.parse(req.params.attestation);
+    const info = await this.parse(req.params.attestation, req.pubkey);
     const key = this.key(info);
     this.data.set(key, {
       data: req.params.data,
@@ -143,6 +143,7 @@ export async function startEnclave(opts: {
     signer: serviceSigner,
     inboxRelayUrl: opts.relayUrl,
     instanceAnnounceRelays,
+    open: true,
     prod,
     getStats,
   });
