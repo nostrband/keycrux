@@ -36,3 +36,4 @@ export const KEYCRUX_RELAY = "wss://relay.enclaved.org";
 
 export const MAX_DATA_LENGTH = 1024;
 export const DATA_TTL = 72 * 3600;
+export const DEBUG = false;

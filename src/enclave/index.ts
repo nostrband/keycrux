@@ -1,5 +1,11 @@
 import { SocksProxyAgent } from "socks-proxy-agent";
-import { Event, generateSecretKey, getPublicKey } from "nostr-tools";
+import {
+  Event,
+  generateSecretKey,
+  getPublicKey,
+  validateEvent,
+  verifyEvent,
+} from "nostr-tools";
 import { Relay } from "../modules/relay";
 import { getInfo } from "../modules/parent";
 import { RequestListener } from "../modules/listeners";
@@ -11,11 +17,26 @@ import { Validator } from "nostr-enclaves";
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import { now } from "../modules/utils";
-import { DATA_TTL } from "../modules/consts";
+import { DATA_TTL, DEBUG } from "../modules/consts";
+
+interface Policy {
+  ref?: string;
+  release_pubkeys?: string[];
+}
+
+interface PolicyInput {
+  ref?: string;
+  release_signatures?: Event[];
+}
 
 interface Data {
+  PCR0: string;
+  PCR1: string;
+  PCR2: string;
+  PCR4: string;
   data: string;
   expiry: number;
+  policy?: Policy;
 }
 
 class KeycruxServer extends Server {
@@ -23,62 +44,152 @@ class KeycruxServer extends Server {
     printLogs: true,
   });
   private data = new Map<string, Data>();
+  private pcr4 = new Map<string, Set<string>>();
 
   constructor(signer: Signer) {
     super(signer);
   }
 
-  private parse(attestation: string, pubkey: string) {
-    if (process.env["TEST"] === "true") {
-      return {
-        public_key: new Uint8Array(),
-        certificate: new Uint8Array(),
-        cabundle: [] as Uint8Array[],
-        pcrs: new Map(JSON.parse(attestation)) as Map<number, Uint8Array>,
-
-      };
-    } else {
-      return this.validator.parseValidateAttestation(attestation, pubkey);
+  public GC() {
+    const expired: [string, string][] = [];
+    const tm = now();
+    for (const [key, data] of this.data.entries()) {
+      if (data.expiry < tm) {
+        expired.push([key, data.PCR4]);
+      }
+    }
+    for (const [key, PCR4] of expired) {
+      this.data.delete(key);
+      this.pcr4.get(PCR4)!.delete(key);
     }
   }
 
-  private key(
-    info: Awaited<ReturnType<typeof this.validator.parseValidateAttestation>>
-  ) {
-    // image
-    const PCR0 = info.pcrs.get(0);
-    const PCR1 = info.pcrs.get(1);
-    const PCR2 = info.pcrs.get(2);
-    // instance
-    const instancePCR = info.pcrs.get(4);
-
-    return bytesToHex(sha256([PCR0, PCR1, PCR2, instancePCR].join("_")));
+  private async parse(req: Request): Promise<Data> {
+    let pcrs: Map<number, Uint8Array> | undefined;
+    if (DEBUG) {
+      pcrs = new Map(JSON.parse(req.params.attestation)) as Map<
+        number,
+        Uint8Array
+      >;
+    } else {
+      const attData = await this.validator.parseValidateAttestation(
+        req.params.attestation,
+        req.pubkey
+      );
+      pcrs = attData.pcrs;
+    }
+    return {
+      data: req.params.data,
+      expiry: now() + DATA_TTL,
+      PCR0: bytesToHex(pcrs.get(0) || new Uint8Array()),
+      PCR1: bytesToHex(pcrs.get(1) || new Uint8Array()),
+      PCR2: bytesToHex(pcrs.get(2) || new Uint8Array()),
+      PCR4: bytesToHex(pcrs.get(4) || new Uint8Array()),
+      policy: req.params.policy,
+    };
   }
 
-  protected async get(req: Request, res: Reply): Promise<void> {
-    const info = await this.parse(req.params.attestation, req.pubkey);
-    const key = this.key(info);
+  private key(data: Data) {
+    return bytesToHex(
+      sha256([data.PCR0, data.PCR1, data.PCR2, data.PCR4].join("_"))
+    );
+  }
+
+  private checkPolicy(data: Data, input: PolicyInput) {
+    const policy = data.policy!;
+
+    // ref required and wrong provided? skip
+    if (policy.ref && policy.ref !== input.ref) return false;
+
+    // release signatures required?
+    if (policy.release_pubkeys && policy.release_pubkeys.length > 0) {
+      const sigs = input.release_signatures as Event[];
+      if (!sigs || sigs.length < policy.release_pubkeys.length) return false;
+
+      // check sigs for pubkeys
+      for (const pubkey of policy.release_pubkeys) {
+        const sig = sigs.find((e) => e.pubkey === pubkey);
+        if (!sig) return false;
+        const ref = sig.tags.find((t) => t.length > 1 && t[0] === "r")?.[1];
+        if (ref !== policy.ref) return false;
+        if (!validateEvent(sig) || !verifyEvent(sig)) return false;
+
+        // check sig pcrs
+        const pcr = (i: number) => {
+          return (
+            sig.tags.find((t) => t.length > 1 && t[0] === "PCR" + i)?.[1] || ""
+          );
+        };
+        if (
+          pcr(0) !== data.PCR0 ||
+          pcr(1) !== data.PCR1 ||
+          pcr(2) !== data.PCR2
+        )
+          return false;
+      }
+    }
+
+    return true;
+  }
+
+  protected async get(request: Request, res: Reply): Promise<void> {
+    const req = await this.parse(request);
+    const key = this.key(req);
     if (this.data.has(key)) {
       res.result = this.data.get(key)!.data;
       return;
     }
 
-    // FIXME now we have to get smarter:
-    // - find history of releases for the current PCR0,
-    // - check each PCR0 of older releases as key,
-    // - if found - the current instance upgraded, return keys to them
+    const keysFromPCR4 = this.pcr4.get(req.PCR4) || new Set();
+    for (const key of keysFromPCR4) {
+      const data = this.data.get(key);
+      if (!data) throw new Error("Internal error, wrong PCR4 index");
+
+      // wrong ec2 instance? skip
+      if (req.PCR4 !== data.PCR4) continue;
+
+      // key has policy attached?
+      if (data.policy) {
+        // no input in request? skip
+        if (!request.params.input) continue;
+
+        const input = request.params.input as PolicyInput;
+        if (this.checkPolicy(data, input)) continue;
+      }
+    }
 
     res.error = "Not found";
   }
 
   protected async set(req: Request, res: Reply): Promise<void> {
-    const info = await this.parse(req.params.attestation, req.pubkey);
-    const key = this.key(info);
-    this.data.set(key, {
-      data: req.params.data,
-      expiry: now() + DATA_TTL,
-    });
+    const data = await this.parse(req);
+
+    // check their own policy
+    if (data.policy) {
+      if (!req.params.input) throw new Error("No input for policy");
+      const input = req.params.input as PolicyInput;
+      if (!this.checkPolicy(data, input))
+        throw new Error("Policy check failed");
+    }
+
+    // store the data
+    const key = this.key(data);
+    this.data.set(key, data);
+
+    // index by pcr4
+    const keysFromPCR4 = this.pcr4.get(data.PCR4) || new Set<string>();
+    keysFromPCR4.add(key);
+    this.pcr4.set(data.PCR4, keysFromPCR4);
+
+    // ok
     res.result = "ok";
+  }
+}
+
+async function startBackground(server: KeycruxServer) {
+  while (true) {
+    server.GC();
+    await new Promise((ok) => setTimeout(ok, 10000));
   }
 }
 
@@ -147,6 +258,9 @@ export async function startEnclave(opts: {
     prod,
     getStats,
   });
+
+  // GC
+  startBackground(server);
 }
 
 // main
