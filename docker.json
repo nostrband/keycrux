@@ -1,8 +1,8 @@
 {
-  "containerimage.config.digest": "sha256:340873137c4fd4cb8f4ff5ade088d2f78b95550af654c25262b1dc62bf509219",
+  "containerimage.config.digest": "sha256:8c144ec8e3754151e46ce2eea96d8ee194eac45a5604441c72894dbc0419555a",
   "containerimage.descriptor": {
     "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
-    "digest": "sha256:306bc4d9b04cff52eb3d4e0be71ee214307c37c9ee1f33367feaaaf2ba2e12ab",
+    "digest": "sha256:55a00609b86314b417ce80e965a57aa295f485ce5db36e956645fd36b0dbe1e6",
     "size": 703,
     "annotations": {
       "org.opencontainers.image.created": "2025-05-29T11:16:00Z"
@@ -12,6 +12,6 @@
       "os": "linux"
     }
   },
-  "containerimage.digest": "sha256:306bc4d9b04cff52eb3d4e0be71ee214307c37c9ee1f33367feaaaf2ba2e12ab",
+  "containerimage.digest": "sha256:55a00609b86314b417ce80e965a57aa295f485ce5db36e956645fd36b0dbe1e6",
   "image.name": "docker.io/library/keycrux:latest"
 }
