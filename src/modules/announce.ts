@@ -15,6 +15,7 @@ export interface AnnounceParams {
   agent: SocksProxyAgent;
   build?: Event;
   instance?: Event;
+  releases?: Event[];
   signer: Signer;
   inboxRelayUrl: string;
   instanceAnnounceRelays?: string[];

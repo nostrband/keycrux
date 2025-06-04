@@ -74,3 +74,17 @@ export function verifyInstance(att: AttestationData, instance: Event) {
   if (instancePCR4 !== enclavePCR4) throw new Error("No matching PCR4");
   return true;
 }
+
+export function verifyRelease(att: AttestationData, release: Event) {
+  for (const i of [0, 1, 2]) {
+    const enclavePCR = Buffer.from(att.pcrs.get(i) || []).toString("hex");
+    if (!enclavePCR) throw new Error("Bad attestation, no PCR" + i);
+
+    const instancePCR = release.tags.find(
+      (t) => t.length > 1 && t[0] === "PCR" + i
+    )?.[1];
+    if (!instancePCR) throw new Error(`No PCR${i} in instance`);
+    if (instancePCR !== enclavePCR) throw new Error("No matching PCR" + i);
+  }
+  return true;
+}

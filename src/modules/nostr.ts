@@ -107,6 +107,7 @@ export async function publishInstance(
     open,
     build,
     instance,
+    releases,
     inboxRelayUrl,
     instanceAnnounceRelays,
   } = p;
@@ -130,7 +131,7 @@ export async function publishInstance(
       ["relay", inboxRelayUrl],
       // expires in 3 hours, together with attestation doc
       ["expiration", "" + (now() + CERT_TTL)],
-      ["alt", "enclaved server"],
+      ["alt", "keycrux server"],
       ["o", open ? "true" : "false"],
       ["comment", open ? "Open for new containers" : "Closed"],
       ["tee_root", JSON.stringify(root)],
@@ -165,6 +166,18 @@ export async function publishInstance(
     );
     if (!prod_ins && prod) {
       throw new Error("Instance is not for production!");
+    }
+  }
+  if (releases) {
+    for (const release of releases) {
+      ins.tags.push(["release", JSON.stringify(release)]);
+      ins.tags.push(["p", release.pubkey, "releaser"]);
+      const prod_release = release.tags.find(
+        (t) => t.length > 1 && t[0] === "t" && t[1] === "prod"
+      );
+      if (!prod_release && prod) {
+        throw new Error("Release is not for production!");
+      }
     }
   }
 
@@ -237,7 +250,7 @@ export async function publishStats(
     content:
       "Stats:\n" +
       [...stats.entries()].map(([key, value]) => `${key}: ${value}`).join("\n"),
-    tags: [["t", "enclaved"]],
+    tags: [["t", "keycrux"]],
   };
   await signPublish(event, signer, relays, agent);
 }

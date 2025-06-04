@@ -35,6 +35,7 @@ export interface AttestationInfo {
 export interface InstanceInfo {
   build?: Event;
   instance?: Event;
+  releases?: Event[];
   instanceAnnounceRelays?: string[];
   prod?: boolean;
 }

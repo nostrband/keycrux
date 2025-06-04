@@ -54,4 +54,7 @@ rm ${BUILD}${KEY}
 # create a file to be served by parent process to the
 # enclave so that enclave could report the $NPUB as builder
 # of this instance
-tsx src/index.ts cli sign_build ${BUILD}
+./node_modules/.bin/tsx src/index.ts cli sign_build ${BUILD}
+
+# create release signature certifying the PCR0,1,2 values
+./node_modules/.bin/tsx src/index.ts cli sign_release ${BUILD}

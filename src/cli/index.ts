@@ -7,6 +7,7 @@ import {
   REPO,
   KIND_BUILD_SIGNATURE,
   KIND_INSTANCE_SIGNATURE,
+  KIND_RELEASE_SIGNATURE,
 } from "../modules/consts";
 import {
   generateSecretKey,
@@ -130,7 +131,7 @@ function readPubkey(dir: string) {
 async function createSigner(pubkey: string): Promise<Nip46Client> {
   const client = new Nip46Client({
     relayUrl: "wss://relay.nsec.app",
-    filename: os.homedir() + "/.noauth-enclaved-cli.json",
+    filename: os.homedir() + "/.noauth-keycrux-cli.json",
     perms: `sign_event:${KIND_INSTANCE}`,
   });
   await client.start();
@@ -250,6 +251,40 @@ async function signBuild(dir: string) {
   fs.writeFileSync(dir + "/build.json", JSON.stringify(event));
 }
 
+async function signRelease(dir: string) {
+  const prod = process.env.PROD === "true";
+
+  const pubkey = readPubkey(dir);
+  console.log("pubkey", pubkey);
+
+  const pcrs = JSON.parse(fs.readFileSync(dir + "/pcrs.json").toString("utf8"));
+  console.log("pcrs", pcrs);
+
+  const signer = await createSigner(pubkey);
+
+  const unsigned = {
+    created_at: now(),
+    kind: KIND_RELEASE_SIGNATURE,
+    content: "",
+    pubkey: await signer.getPublicKey(),
+    tags: [
+      ["t", prod ? "prod" : "dev"],
+      ["r", REPO],
+      ["PCR0", pcrs.Measurements["PCR0"]],
+      ["PCR1", pcrs.Measurements["PCR1"]],
+      ["PCR2", pcrs.Measurements["PCR2"]],
+    ],
+  };
+  console.log("signing", unsigned);
+  const event = await signer.signEvent(unsigned);
+  console.log("signed", event);
+
+  const path = dir + "/release";
+  fs.mkdirSync(path, { recursive: true });
+  const npub = nip19.npubEncode(pubkey);
+  fs.writeFileSync(`${path}/${npub}.json`, JSON.stringify(event));
+}
+
 async function ensureInstanceSignature(dir: string) {
   const prod = process.env.PROD === "true";
 
@@ -335,6 +370,10 @@ export function mainCli(argv: string[]) {
     case "sign_build": {
       const dir = argv?.[1] || "./build/";
       return signBuild(dir);
+    }
+    case "sign_release": {
+      const dir = argv?.[1] || "./release/";
+      return signRelease(dir);
     }
     case "ensure_instance_signature": {
       const dir = argv?.[1] || "./instance/";

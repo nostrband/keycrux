@@ -1,5 +1,5 @@
 import { bytesToHex } from "@noble/hashes/utils";
-import { verifyBuild, verifyInstance } from "./aws";
+import { verifyBuild, verifyInstance, verifyRelease } from "./aws";
 import { nsmGetAttestation, nsmParseAttestation } from "./nsm";
 import { InstanceInfo } from "./types";
 
@@ -26,7 +26,7 @@ export async function getInfo(parentUrl: string) {
       // 20sec timeout to fetch outbox relays
       const timer = setTimeout(() => {
         ws.close();
-        ok(null)
+        ok(null);
       }, 20000);
 
       ws.onmessage = (ev) => {
@@ -36,20 +36,23 @@ export async function getInfo(parentUrl: string) {
           const r = JSON.parse(data);
           if (r.id !== "start") throw new Error("Bad reply id");
           if (r.error) throw new Error(r.error);
-          const { build, instance, instanceAnnounceRelays, prod } = JSON.parse(
-            r.result
-          );
+          const { build, instance, releases, instanceAnnounceRelays, prod } =
+            JSON.parse(r.result);
           if (!build || !instance) throw new Error("Bad reply");
 
           const notDebug = !!attData.pcrs.get(0)!.find((c) => c !== 0);
           if (notDebug) {
+            if (!build || !instance || !releases) throw new Error("Bad reply");
             verifyBuild(attData, build);
             verifyInstance(attData, instance);
+            for (const release of releases) verifyRelease(attData, release);
           } else {
             // attestation has empty pcr8 and pcr4...
-            // if (build.tags.find((t: string[]) => t.length > 1 && t[0] === "PCR8")?.[1] !== bytesToHex(attData.pcrs.get(8)!))
-            //   throw new Error("Invalid build info from parent");
-            if (instance.tags.find((t: string[]) => t.length > 1 && t[0] === "PCR4")?.[1] !== bytesToHex(attData.pcrs.get(4)!))
+            if (
+              instance.tags.find(
+                (t: string[]) => t.length > 1 && t[0] === "PCR4"
+              )?.[1] !== bytesToHex(attData.pcrs.get(4)!)
+            )
               throw new Error("Invalid instance info from parent");
           }
           console.log(
@@ -58,7 +61,7 @@ export async function getInfo(parentUrl: string) {
             build,
             instance
           );
-          ok({ build, instance, instanceAnnounceRelays, prod });
+          ok({ build, instance, releases, instanceAnnounceRelays, prod });
         } catch (e: any) {
           console.log("parent reply error", e, data);
           err(e.message || e.toString());

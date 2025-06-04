@@ -13,6 +13,7 @@ export const KIND_BUILD = 63794;
 // build and instance signatures (should we rename to "certificates")?
 export const KIND_BUILD_SIGNATURE = 63795;
 export const KIND_INSTANCE_SIGNATURE = 63796;
+export const KIND_RELEASE_SIGNATURE = 63792;
 
 // enclaved container + certificate
 export const KIND_ENCLAVED_PROCESS = 63797;

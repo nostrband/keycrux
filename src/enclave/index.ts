@@ -168,8 +168,15 @@ class KeycruxServer extends Server {
     if (data.policy) {
       if (!req.params.input) throw new Error("No input for policy");
       const input = req.params.input as PolicyInput;
-      if (!this.checkPolicy(data, input))
+      if (!this.checkPolicy(data, input)) {
+        console.log(
+          "policy",
+          JSON.stringify(data.policy),
+          "input",
+          JSON.stringify(input)
+        );
         throw new Error("Policy check failed");
+      }
     }
 
     // store the data
@@ -199,9 +206,10 @@ export async function startEnclave(opts: {
   parentUrl: string;
 }) {
   console.log(new Date(), "opts", opts);
-  const { build, instance, instanceAnnounceRelays, prod } = await getInfo(
-    opts.parentUrl
-  );
+
+  const info = await getInfo(opts.parentUrl);
+  console.log("info", info);
+  const { build, instance, releases, instanceAnnounceRelays, prod } = info;
 
   // we're talking to the outside world using socks proxy
   // that lives in enclave parent and our tcp traffic
@@ -251,6 +259,7 @@ export async function startEnclave(opts: {
     agent,
     build,
     instance,
+    releases,
     signer: serviceSigner,
     inboxRelayUrl: opts.relayUrl,
     instanceAnnounceRelays,

@@ -2,10 +2,10 @@
 import socks5 from "node-socks5-server";
 import { RawData, WebSocket, WebSocketServer } from "ws";
 import fs from "node:fs";
-import { validateEvent, verifyEvent } from "nostr-tools";
+import { Event, validateEvent, verifyEvent } from "nostr-tools";
 import { nsmParseAttestation } from "../modules/nsm";
 import { fetchOutboxRelays } from "../modules/nostr";
-import { verifyBuild, verifyInstance } from "../modules/aws";
+import { verifyBuild, verifyInstance, verifyRelease } from "../modules/aws";
 
 interface Req {
   id: string;
@@ -36,20 +36,53 @@ class ParentServer {
   }
 
   private read() {
-    const build = JSON.parse(
-      fs.readFileSync(this.dir + "/build.json").toString("utf8")
-    );
-    const instance = JSON.parse(
-      fs.readFileSync(this.dir + "/instance.json").toString("utf8")
-    );
+    let build: Event | undefined;
+    let instance: Event | undefined;
+    let releases: Event[] = [];
+    try {
+      build = JSON.parse(
+        fs.readFileSync(this.dir + "/build.json").toString("utf8")
+      );
+    } catch (e) {
+      console.log("No build file", e);
+    }
+    try {
+      instance = JSON.parse(
+        fs.readFileSync(this.dir + "/instance.json").toString("utf8")
+      );
+    } catch (e) {
+      console.log("No instance file", e);
+    }
+    try {
+      const files = fs.readdirSync(this.dir + "/release/");
+      console.log("release files", files);
+      for (const file of files) {
+        const release = JSON.parse(
+          fs.readFileSync(this.dir + "/release/" + file).toString("utf8")
+        );
+        releases.push(release);
+      }
+    } catch (e) {
+      console.log("No release files", e);
+    }
     console.log("build", build);
     console.log("instance", instance);
-    if (!validateEvent(build) || !verifyEvent(build))
-      throw new Error("Invalid build.json");
-    if (!validateEvent(instance) || !verifyEvent(instance))
-      throw new Error("Invalid instance.json");
+    console.log("releases", releases);
+    if (build) {
+      if (!validateEvent(build) || !verifyEvent(build))
+        throw new Error("Invalid build.json");
+    }
+    if (instance) {
+      if (!validateEvent(instance) || !verifyEvent(instance))
+        throw new Error("Invalid instance.json");
+    }
+    if (releases) {
+      for (const release of releases)
+        if (!validateEvent(release) || !verifyEvent(release))
+          throw new Error("Invalid releases");
+    }
 
-    return { build, instance };
+    return { build, instance, releases };
   }
 
   private onConnect(ws: WebSocket) {
@@ -64,21 +97,24 @@ class ParentServer {
 
     const attData = nsmParseAttestation(att);
 
-    const { build, instance } = this.read();
+    const { build, instance, releases } = this.read();
     // debug enclaves return zero PCR0
     const prodEnclave = !!attData.pcrs.get(0)!.find((c) => c !== 0);
     if (prodEnclave) {
-      verifyBuild(attData, build);
-      verifyInstance(attData, instance);
+      verifyBuild(attData, build!);
+      verifyInstance(attData, instance!);
+      for (const release of releases)
+        verifyRelease(attData, release);
     }
 
-    const relays = await fetchOutboxRelays([build.pubkey, instance.pubkey]);
-    console.log("outbox relays", build.pubkey, instance.pubkey, relays);
+    const relays = await fetchOutboxRelays([build!.pubkey, instance!.pubkey]);
+    console.log("outbox relays", build!.pubkey, instance!.pubkey, relays);
 
     const prod = process.env.PROD === "true";
     return JSON.stringify({
-      build: build,
-      instance: instance,
+      build,
+      instance,
+      releases,
       instanceAnnounceRelays: relays,
       prod
     });
