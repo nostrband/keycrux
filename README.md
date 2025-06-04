@@ -8,11 +8,28 @@ The `keycrux` service is stateless, make sure to store your keys in several key 
 
 ## Discovery
 
-`keycrux` instances can be discovered on Nostr (start with `wss://relay.enclaved.org`) as `kind:63793` events with `r` tag equal to `https://github.com/nostrband/keycrux`. Those will include `tee_root` tags with AWS Nitro Enclave attestation. The `relay` tag will include the inbox relay which can be used to send requests the service.
+`keycrux` instances can be discovered on Nostr (start with `wss://relay.enclaved.org`) as `kind:63793` events with `r` tag equal to `https://github.com/nostrband/keycrux`. Those will include `tee_root` tags with AWS Nitro Enclave attestation. The `relay` tag will include the inbox relay which can be used to send requests to the service. You can use [`nostr-enclaved`](https://github.com/nostrband/nostr-enclaves) library to validate the attestations of `keycrux` services:
+
+```js
+export async function validateKeycrux(e: Event) {
+  const validator = new Validator({
+    expectedRelease: {
+      ref: "https://github.com/nostrband/keycrux",
+      signerPubkeys: [<maintainer pubkeys, see below>],
+    },
+  });
+  try {
+    return await validator.validateInstance(e);
+  } catch (err) {
+    console.log("Invalid attestation of ", e.pubkey, e.id);
+    return false;
+  }
+}
+```
 
 ## API
 
-After discovering the `pubkey` and `relay` of the `keycrux` service you can send requests/replies as `kind:29525` ephemeral events, with one `p-tag` containing the service `pubkey`. The request body is a JSON string [nip44](https://github.com/nostr-protocol/nips/blob/master/44.md)-encrypted for the `pubkey`. Full structure:
+After discovering the `pubkey` and `relay` of the `keycrux` service you can send requests as `kind:29525` ephemeral events, with one `p-tag` containing the service `pubkey`. The request body is a JSON string [nip44](https://github.com/nostr-protocol/nips/blob/master/44.md)-encrypted for the `pubkey`. Full structure:
 
 ```
 {
@@ -27,7 +44,7 @@ After discovering the `pubkey` and `relay` of the `keycrux` service you can send
     "id": "<random-request-id>",
     "method": <method-name>,
     "params": {
-      "attestation": <base64-encoded attestation by AWS Nitro enclave>,
+      "attestation": <base64-encoded attestation linked to client pubkey>,
       ...<other params>
     }
   }))
@@ -114,6 +131,10 @@ The `input.release_signature` field is an array of `kind:63792` events, one for 
   ],
 }
 ```
+
+## Release signers
+
+The releases of `keycrux` are signed by `3356de61b39647931ce8b2140b2bab837e0810c0ef515bbe92de0248040b8bdd` (brugeman), if you're interested in becoming a co-signer - send DMs.
 
 ## Contribution
 
