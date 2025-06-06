@@ -1,9 +1,7 @@
 import os from "node:os";
 import fs from "node:fs";
-import { bytesToHex } from "@noble/hashes/utils";
 import {
-  KIND_INSTANCE,
-  KIND_BUILD,
+  KIND_ANNOUNCEMENT,
   REPO,
   KIND_BUILD_SIGNATURE,
   KIND_INSTANCE_SIGNATURE,
@@ -17,8 +15,6 @@ import {
 } from "nostr-tools";
 import readline from "node:readline";
 import { now } from "../modules/utils";
-import { fetchOutboxRelays } from "../modules/nostr";
-import { Relay } from "../modules/relay";
 import { pcrDigest } from "../modules/aws";
 import { Nip46Client } from "./nip46-client";
 import { KeycruxClient } from "./keycrux-client";
@@ -71,7 +67,7 @@ async function ping({
 async function get({
   relayUrl,
   adminPubkey,
-  attestation
+  attestation,
 }: {
   relayUrl: string;
   adminPubkey: string;
@@ -90,7 +86,7 @@ async function set({
   relayUrl,
   adminPubkey,
   attestation,
-  data
+  data,
 }: {
   relayUrl: string;
   adminPubkey: string;
@@ -107,13 +103,11 @@ async function set({
 }
 
 function readCert(dir: string) {
-  return fs
-    .readFileSync(dir + "/crt.pem")
-    .toString("utf8")
-    .split("\n")
-    .filter((s) => !s.startsWith("--"))
-    .join("")
-    .trim();
+  return fs.readFileSync(dir + "/crt.pem").toString("utf8");
+}
+
+function readPackageJson(): { version: string } {
+  return JSON.parse(fs.readFileSync("package.json").toString("utf8").trim());
 }
 
 function readPubkey(dir: string) {
@@ -132,88 +126,13 @@ async function createSigner(pubkey: string): Promise<Nip46Client> {
   const client = new Nip46Client({
     relayUrl: "wss://relay.nsec.app",
     filename: os.homedir() + "/.noauth-keycrux-cli.json",
-    perms: `sign_event:${KIND_INSTANCE}`,
+    perms: `sign_event:${KIND_ANNOUNCEMENT}`,
   });
   await client.start();
   const authPubkey = await client.getPublicKey();
   console.log("signed in as", authPubkey);
   if (authPubkey !== pubkey) throw new Error("Wrong auth npub");
   return client;
-}
-
-export async function publishBuild({
-  dir,
-  prod_dev,
-  safe_unsafe,
-  comment,
-}: {
-  dir: string;
-  prod_dev: string;
-  safe_unsafe: string;
-  comment: string;
-}) {
-  if (prod_dev !== "dev" && prod_dev !== "prod")
-    throw new Error("Specify 'dev' or 'prod'");
-  if (safe_unsafe !== "safe" && safe_unsafe !== "unsafe")
-    throw new Error("Specify 'safe' or 'unsafe'");
-
-  const pubkey = readPubkey(dir);
-  console.log("pubkey", pubkey);
-
-  const docker = JSON.parse(
-    fs.readFileSync(dir + "/docker.json").toString("utf8")
-  );
-  console.log("docker info", docker);
-
-  const pcrs = JSON.parse(fs.readFileSync(dir + "/pcrs.json").toString("utf8"));
-  console.log("pcrs", pcrs);
-
-  const cert = readCert(dir);
-  console.log("cert", cert);
-
-  const pkg = JSON.parse(fs.readFileSync("package.json").toString("utf8"));
-  console.log("pkg", pkg);
-
-  console.log("signing in as", pubkey);
-  const signer = await createSigner(pubkey);
-
-  const relays = await fetchOutboxRelays([pubkey]);
-  console.log("relays", relays);
-
-  const unsigned = {
-    created_at: now(),
-    kind: KIND_BUILD,
-    content: comment,
-    pubkey: await signer.getPublicKey(),
-    tags: [
-      ["r", REPO],
-      ["name", pkg.name],
-      ["v", pkg.version],
-      ["t", prod_dev],
-      ["t", safe_unsafe],
-      ["cert", cert],
-      ["x", docker["containerimage.config.digest"], "docker.config"],
-      ["x", docker["containerimage.digest"], "docker.manifest"],
-      ...[0, 1, 2, 8]
-        .map((id) => `PCR${id}`)
-        .map((pcr) => ["x", pcrs.Measurements[pcr], pcr]),
-    ],
-  };
-  // console.log("signing", unsigned);
-  const event = await signer.signEvent(unsigned);
-  console.log("signed", event);
-
-  const res = await Promise.allSettled(
-    relays.map((url) => {
-      const r = new Relay(url);
-      return r.publish(event).finally(() => r.dispose());
-    })
-  );
-
-  console.log(
-    "published to",
-    res.filter((r) => r.status === "fulfilled").length
-  );
 }
 
 async function signBuild(dir: string) {
@@ -228,6 +147,9 @@ async function signBuild(dir: string) {
   const cert = readCert(dir);
   console.log("cert", cert);
 
+  const pkg = readPackageJson();
+  console.log("package.json", pkg);
+
   const signer = await createSigner(pubkey);
 
   // PCR8 is unique on every build (the way we do the build)
@@ -239,6 +161,8 @@ async function signBuild(dir: string) {
     pubkey: await signer.getPublicKey(),
     tags: [
       ["-"], // not for publishing
+      ["r", REPO],
+      ["v", pkg.version],
       ["t", prod ? "prod" : "dev"],
       ["cert", cert],
       ["PCR8", pcrs.Measurements["PCR8"]],
@@ -260,6 +184,9 @@ async function signRelease(dir: string) {
   const pcrs = JSON.parse(fs.readFileSync(dir + "/pcrs.json").toString("utf8"));
   console.log("pcrs", pcrs);
 
+  const pkg = readPackageJson();
+  console.log("package.json", pkg);
+
   const signer = await createSigner(pubkey);
 
   const unsigned = {
@@ -268,11 +195,13 @@ async function signRelease(dir: string) {
     content: "",
     pubkey: await signer.getPublicKey(),
     tags: [
+      ["-"], // not for publishing
       ["t", prod ? "prod" : "dev"],
       ["r", REPO],
-      ["PCR0", pcrs.Measurements["PCR0"]],
-      ["PCR1", pcrs.Measurements["PCR1"]],
-      ["PCR2", pcrs.Measurements["PCR2"]],
+      ["v", pkg.version],
+      ["x", pcrs.Measurements["PCR0"], "PCR0"],
+      ["x", pcrs.Measurements["PCR1"], "PCR1"],
+      ["x", pcrs.Measurements["PCR2"], "PCR2"],
     ],
   };
   console.log("signing", unsigned);

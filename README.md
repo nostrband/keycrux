@@ -8,7 +8,7 @@ The `keycrux` service is stateless, make sure to store your keys in several key 
 
 ## Discovery
 
-`keycrux` instances can be discovered on Nostr (start with `wss://relay.enclaved.org`) as `kind:63793` events with `r` tag equal to `https://github.com/nostrband/keycrux`. Those will include `tee_root` tags with AWS Nitro Enclave attestation. The `relay` tag will include the inbox relay which can be used to send requests to the service. You can use [`nostr-enclaved`](https://github.com/nostrband/nostr-enclaves) library to validate the attestations of `keycrux` services:
+`keycrux` instances can be discovered on Nostr (start with `wss://relay.enclaved.org`) as `kind:13793` events with `r` tag equal to `https://github.com/nostrband/keycrux` ([NEC-02](https://github.com/nostrband/necs/blob/main/02.md)). Those will include `tee_root` tags with AWS Nitro Enclave attestation ([NEC-01](https://github.com/nostrband/necs/blob/main/01.md)). The `relay` tag will include the inbox relay which can be used to send requests to the service. You can use [`nostr-enclaved`](https://github.com/nostrband/nostr-enclaves) library to validate the attestations of `keycrux` services:
 
 ```js
 export async function validateKeycrux(e: Event) {
@@ -51,7 +51,7 @@ After discovering the `pubkey` and `relay` of the `keycrux` service you can send
 }
 ```
 
-The `attestation` param must have `public_key` field equal to `client pubkey`, to make sure the attestation wasn't just copied by the client from a third-party, you can use `nostr-enclaved` library to validate the attestation (`Validator.parseValidateAttestation(attestation, pubkey)`).
+The `attestation` param must have `public_key` field equal to `client pubkey`, to make sure the attestation wasn't just copied by the client from a third-party.
 
 Results are encrypted back to the client's `pubkey` and `p`-tagging it, structure:
 ```
@@ -111,11 +111,11 @@ Description:
 
 The `attestation` parameter is parsed and validated. If there is a stored key with identical `PCR[0,1,2,4]` values (0, 1 and 2 specify the code image and 4 specifies the EC2 instance) then the secret is returned. This handles the simple case of enclave reboot without code upgrades.
 
-If no fully-matching PCR values are found then all keys with matching `PCR4` hashes (same EC2-instance) are selected and the `input` field is checked against each stored key's `policy` rules. At the very least, the `policy.ref` field of the secret and `input.ref` of the request must match - this can be used to differentiate btw several enclaves on the same EC2-instance, or can be used as a secret token for closed-source apps. If `policy.release_pubkeys` are provided then `input.release_signatures` must include `kind:63792` events signing the request's `PCR[0,1,2]` values. This way, when code is upgraded, each maintainer creates `kind:63792` event with the same `ref` and the new `PCR[0,1,2]` values, and those are supplied into the new enclave so that it could ask for its keys from `keycrux`.
+If no fully-matching PCR values are found then all keys with matching `PCR4` hashes (same EC2-instance) are selected and the `input` field is checked against each stored key's `policy` rules. At the very least, the `policy.ref` field of the secret and `input.ref` of the request must match - this can be used to differentiate btw several enclaves on the same EC2-instance, or can be used as a secret token for closed-source apps. If `policy.release_pubkeys` are provided then `input.release_signatures` must include `kind:63794` events signing the request's `PCR[0,1,2]` values ([NEC-05](https://github.com/nostrband/necs/blob/main/05.md)). This way, when code is upgraded, each maintainer creates `kind:63794` event with the same `ref` and the new `PCR[0,1,2]` values, and those are supplied into the new enclave so that it could ask for its keys from `keycrux`.
 
 ### Release signatures
 
-The `input.release_signature` field is an array of `kind:63792` events, one for each maintainer that are required by `policy.release_pubkeys`. Structure:
+The `input.release_signature` field is an array of `kind:63794` events, one for each maintainer that are required by `policy.release_pubkeys`. Structure:
 
 ```
 {

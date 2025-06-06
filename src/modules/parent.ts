@@ -2,6 +2,8 @@ import { bytesToHex } from "@noble/hashes/utils";
 import { verifyBuild, verifyInstance, verifyRelease } from "./aws";
 import { nsmGetAttestation, nsmParseAttestation } from "./nsm";
 import { InstanceInfo } from "./types";
+import fs from "node:fs";
+import { Event } from "nostr-tools";
 
 export async function getInfo(parentUrl: string) {
   // get build and instance info from the enclave parent
@@ -22,6 +24,13 @@ export async function getInfo(parentUrl: string) {
           params: [att.toString("base64")],
         })
       );
+
+      const releasePolicy = JSON.parse(
+        fs.readFileSync("release.json").toString("utf8")
+      );
+      if (!releasePolicy.signer_pubkeys || !releasePolicy.signer_pubkeys.length)
+        throw new Error("No signer pubkeys");
+
       // return null to retry on timeout,
       // 20sec timeout to fetch outbox relays
       const timer = setTimeout(() => {
@@ -46,6 +55,10 @@ export async function getInfo(parentUrl: string) {
             verifyBuild(attData, build);
             verifyInstance(attData, instance);
             for (const release of releases) verifyRelease(attData, release);
+            for (const pubkey of releasePolicy.signer_pubkeys) {
+              if (!releases.find((r: Event) => r.pubkey === pubkey))
+                throw new Error("Release signer not found");
+            }
           } else {
             // attestation has empty pcr8 and pcr4...
             if (
@@ -61,7 +74,7 @@ export async function getInfo(parentUrl: string) {
             build,
             instance
           );
-          ok({ build, instance, releases, instanceAnnounceRelays, prod });
+          ok({ build, instance, releases, releasePolicy, instanceAnnounceRelays, prod });
         } catch (e: any) {
           console.log("parent reply error", e, data);
           err(e.message || e.toString());

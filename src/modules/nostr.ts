@@ -5,7 +5,7 @@ import {
   APP_NAME,
   CERT_TTL,
   KIND_CONTACTS,
-  KIND_INSTANCE,
+  KIND_ANNOUNCEMENT,
   KIND_PROFILE,
   KIND_RELAYS,
   KIND_ROOT_CERTIFICATE,
@@ -16,6 +16,8 @@ import { Relay } from "./relay";
 import { AnnounceParams } from "./announce";
 import { bytesToHex, randomBytes } from "@noble/hashes/utils";
 import { SocksProxyAgent } from "socks-proxy-agent";
+import { X509Certificate } from "node:crypto";
+import { tv } from "nostr-enclaves";
 
 export const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
@@ -80,6 +82,8 @@ export async function prepareRootCertificate(
   info: AttestationInfo,
   signer: Signer
 ) {
+  const cert = new X509Certificate(info.info!.certificate);
+  const expiration = Math.floor(cert.validToDate.getTime() / 1000);
   const servicePubkey = await signer.getPublicKey();
   const tmpl: UnsignedEvent = {
     pubkey: servicePubkey,
@@ -87,8 +91,9 @@ export async function prepareRootCertificate(
     created_at: now(),
     content: info.base64,
     tags: [
+      ["-"],
       ["t", info.env],
-      ["expiration", "" + (now() + CERT_TTL)],
+      ["expiration", "" + expiration],
       ["alt", "attestation certificate by AWS Nitro Enclave"],
     ],
   };
@@ -119,7 +124,7 @@ export async function publishInstance(
 
   const ins: UnsignedEvent = {
     pubkey,
-    kind: KIND_INSTANCE,
+    kind: KIND_ANNOUNCEMENT,
     created_at: now(),
     content: "Keycrux: key storage service for enclaved services",
     tags: [
@@ -129,8 +134,8 @@ export async function publishInstance(
       ["t", info.env],
       // admin interface relay with spam protection
       ["relay", inboxRelayUrl],
-      // expires in 3 hours, together with attestation doc
-      ["expiration", "" + (now() + CERT_TTL)],
+      // expires together with attestation doc
+      ["expiration", tv(root, "expiration")],
       ["alt", "keycrux server"],
       ["o", open ? "true" : "false"],
       ["comment", open ? "Open for new containers" : "Closed"],

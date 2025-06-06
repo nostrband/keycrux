@@ -6,24 +6,13 @@ export const KIND_RELAYS = 10002;
 
 export const KIND_NIP46 = 24133;
 
-// instance event plus certificate from the enclave
-export const KIND_INSTANCE = 63793;
-export const KIND_BUILD = 63794;
-
-// build and instance signatures (should we rename to "certificates")?
-export const KIND_BUILD_SIGNATURE = 63795;
-export const KIND_INSTANCE_SIGNATURE = 63796;
-export const KIND_RELEASE_SIGNATURE = 63792;
-
-// enclaved container + certificate
-export const KIND_ENCLAVED_PROCESS = 63797;
+// service announcement with attestation
+export const KIND_ANNOUNCEMENT = 13793;
 
 export const KIND_ROOT_CERTIFICATE = 23793;
-export const KIND_ENCLAVED_CERTIFICATE = 23797;
-
-export const KIND_ENCLAVED_PRODUCT = 63790;
-export const KIND_ENCLAVED_RELEASE = 63791;
-export const KIND_ENCLAVED_RELEASE_SIGNATURE = 63792;
+export const KIND_BUILD_SIGNATURE = 23794;
+export const KIND_INSTANCE_SIGNATURE = 23795;
+export const KIND_RELEASE_SIGNATURE = 63794;
 
 export const CERT_TTL = 3 * 3600; // 3h
 

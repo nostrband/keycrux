@@ -22,6 +22,7 @@ export interface Nip46Req {
 }
 
 export interface AttestationData {
+  certificate: Uint8Array;
   pcrs: Map<number, Uint8Array>;
   module_id: string;
 }
@@ -32,10 +33,15 @@ export interface AttestationInfo {
   env: "debug" | "dev" | "prod";
 }
 
+export interface ReleasePolicy {
+  signer_pubkeys: string[];
+}
+
 export interface InstanceInfo {
   build?: Event;
   instance?: Event;
   releases?: Event[];
+  releasePolicy?: ReleasePolicy;
   instanceAnnounceRelays?: string[];
   prod?: boolean;
 }

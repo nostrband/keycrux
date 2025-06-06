@@ -46,6 +46,7 @@ COPY tsconfig.json ./
 COPY ./enclave*.sh .
 COPY ./supervisord.conf .
 COPY ./supervisord-ctl.sh .
+COPY ./release.json .
 
 # Mac has different default perms vs Linux
 RUN chown -R root:root *

@@ -209,7 +209,13 @@ export async function startEnclave(opts: {
 
   const info = await getInfo(opts.parentUrl);
   console.log("info", info);
-  const { build, instance, releases, instanceAnnounceRelays, prod } = info;
+  const {
+    build,
+    instance,
+    releases,
+    instanceAnnounceRelays,
+    prod,
+  } = info;
 
   // we're talking to the outside world using socks proxy
   // that lives in enclave parent and our tcp traffic
