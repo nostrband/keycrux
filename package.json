@@ -16,7 +16,7 @@
     "aws-nitro-enclaves-nsm-node": "^0.0.2",
     "cbor2": "^1.12.0",
     "node-socks5-server": "^1.1.0",
-    "nostr-enclaves": "^2.0.10",
+    "nostr-enclaves": "^2.0.15",
     "nostr-tools": "^2.11.0",
     "socks-proxy-agent": "^8.0.5",
     "ws": "^8.18.1"

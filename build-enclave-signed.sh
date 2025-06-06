@@ -33,7 +33,7 @@ docker load -i ${BUILD}${FILE}.tar
 
 # to produce PCR8 linking the build to NPUB
 openssl ecparam -name secp384r1 -genkey -out ${BUILD}${KEY}
-openssl req -new -key ${BUILD}${KEY} -sha384 -nodes -subj "/CN=Nostr/C=US/ST=WA/L=Seattle/O=Nostr/OU=${NPUB}" -out ${BUILD}${CSR}
+openssl req -new -key ${BUILD}${KEY} -sha384 -nodes -subj "/CN=${NPUB}/O=Nostr" -out ${BUILD}${CSR}
 openssl x509 -req -days 2000 -in ${BUILD}${CSR} -out ${BUILD}${CRT} -sha384 -signkey ${BUILD}${KEY}
 rm ${BUILD}${CSR} # no longer needed
 
