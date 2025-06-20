@@ -117,7 +117,9 @@ class KeycruxServer extends Server {
         // check sig pcrs
         const pcr = (i: number) => {
           return (
-            sig.tags.find((t) => t.length > 1 && t[0] === "PCR" + i)?.[1] || ""
+            sig.tags.find(
+              (t) => t.length > 2 && t[0] === "x" && t[2] === "PCR" + i
+            )?.[1] || ""
           );
         };
         if (
@@ -209,13 +211,7 @@ export async function startEnclave(opts: {
 
   const info = await getInfo(opts.parentUrl);
   console.log("info", info);
-  const {
-    build,
-    instance,
-    releases,
-    instanceAnnounceRelays,
-    prod,
-  } = info;
+  const { build, instance, releases, instanceAnnounceRelays, prod } = info;
 
   // we're talking to the outside world using socks proxy
   // that lives in enclave parent and our tcp traffic
