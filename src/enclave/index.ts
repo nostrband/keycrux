@@ -95,9 +95,7 @@ class KeycruxServer extends Server {
     );
   }
 
-  private checkPolicy(data: Data, input: PolicyInput) {
-    const policy = data.policy!;
-
+  private checkPolicy(req: Data, policy: Policy, input: PolicyInput) {
     // ref required and wrong provided? skip
     if (policy.ref && policy.ref !== input.ref) return false;
 
@@ -122,11 +120,7 @@ class KeycruxServer extends Server {
             )?.[1] || ""
           );
         };
-        if (
-          pcr(0) !== data.PCR0 ||
-          pcr(1) !== data.PCR1 ||
-          pcr(2) !== data.PCR2
-        )
+        if (pcr(0) !== req.PCR0 || pcr(1) !== req.PCR1 || pcr(2) !== req.PCR2)
           return false;
       }
     }
@@ -155,9 +149,22 @@ class KeycruxServer extends Server {
         // no input in request? skip
         if (!request.params.input) continue;
 
+        // match data policy against request
         const input = request.params.input as PolicyInput;
-        if (this.checkPolicy(data, input)) continue;
+        if (!this.checkPolicy(req, data.policy, input)) {
+          console.log(
+            "mismatch policy",
+            JSON.stringify(data.policy),
+            "input",
+            JSON.stringify(input)
+          );
+          continue;
+        }
       }
+
+      // upgraded enclave matches the policy
+      res.result = data.data;
+      return;
     }
 
     res.error = "Not found";
@@ -169,10 +176,12 @@ class KeycruxServer extends Server {
     // check their own policy
     if (data.policy) {
       if (!req.params.input) throw new Error("No input for policy");
+
+      // match req policy against itself
       const input = req.params.input as PolicyInput;
-      if (!this.checkPolicy(data, input)) {
+      if (!this.checkPolicy(data, data.policy, input)) {
         console.log(
-          "policy",
+          "mismatch policy",
           JSON.stringify(data.policy),
           "input",
           JSON.stringify(input)
