@@ -90,7 +90,7 @@ export class Server {
       // req
       const req: Request = {
         pubkey: e.pubkey,
-        id: e.id,
+        id,
         method,
         params,
       };
