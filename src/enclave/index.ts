@@ -15,7 +15,7 @@ import { Signer } from "../modules/types";
 import { PrivateKeySigner } from "../modules/signer";
 import { Validator } from "nostr-enclaves";
 import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { now } from "../modules/utils";
 import { DATA_TTL, DEBUG } from "../modules/consts";
 
@@ -89,6 +89,11 @@ class KeycruxServer extends Server {
     };
   }
 
+  private isDebug(data: Data) {
+    const notDebug = !!hexToBytes(data.PCR0).find((c) => c !== 0);
+    return !notDebug;
+  }
+
   private key(data: Data) {
     return bytesToHex(
       sha256([data.PCR0, data.PCR1, data.PCR2, data.PCR4].join("_"))
@@ -143,6 +148,9 @@ class KeycruxServer extends Server {
 
       // wrong ec2 instance? skip
       if (req.PCR4 !== data.PCR4) continue;
+
+      // debug mismatch
+      if (this.isDebug(req) !== this.isDebug(data)) continue;
 
       // key has policy attached?
       if (data.policy) {

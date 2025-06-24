@@ -137,8 +137,7 @@ export async function publishInstance(
       // expires together with attestation doc
       ["expiration", tv(root, "expiration")],
       ["alt", "keycrux server"],
-      ["o", open ? "true" : "false"],
-      ["comment", open ? "Open for new containers" : "Closed"],
+      // ["o", open ? "true" : "false"],
       ["tee_root", JSON.stringify(root)],
     ],
   };
