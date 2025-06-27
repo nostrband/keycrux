@@ -45,6 +45,7 @@ class KeycruxServer extends Server {
   });
   private data = new Map<string, Data>();
   private pcr4 = new Map<string, Set<string>>();
+  private startedAt = Date.now();
 
   constructor(signer: Signer) {
     super(signer);
@@ -249,6 +250,7 @@ class KeycruxServer extends Server {
       countPCR4: PCR4s.size,
       count,
       countDebug,
+      startedAt: this.startedAt,
     };
   }
 }
