@@ -6,7 +6,6 @@ import fs from "node:fs";
 import { Event } from "nostr-tools";
 
 export async function getInfo(parentUrl: string) {
-
   const run = async () => {
     // get build and instance info from the enclave parent
     // and verify that info matches our own attestation
@@ -26,14 +25,6 @@ export async function getInfo(parentUrl: string) {
             ok({});
             return;
           }
-          const attData = nsmParseAttestation(att);
-          ws.send(
-            JSON.stringify({
-              id: "start",
-              method: "start",
-              params: [att.toString("base64")],
-            })
-          );
 
           const releasePolicy = JSON.parse(
             fs.readFileSync("release.json").toString("utf8")
@@ -47,11 +38,15 @@ export async function getInfo(parentUrl: string) {
           // return null to retry on timeout,
           // 20sec timeout to fetch outbox relays
           timer = setTimeout(() => {
+            console.log(new Date(), "parent timeout");
             ws.close();
             ok(null);
           }, 20000);
 
+          const attData = nsmParseAttestation(att);
+
           ws.onmessage = (ev) => {
+            console.log(new Date(), "parent reply", ev.data);
             clearTimeout(timer);
             const data = ev.data.toString("utf8");
             try {
@@ -108,6 +103,16 @@ export async function getInfo(parentUrl: string) {
               ws.close();
             }
           };
+
+          // send request
+          console.log(new Date(), "requesting parent start...");
+          ws.send(
+            JSON.stringify({
+              id: "start",
+              method: "start",
+              params: [att.toString("base64")],
+            })
+          );
         } catch (e: any) {
           console.log("onopen error", e);
           err(e.message || e.toString());
