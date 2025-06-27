@@ -210,6 +210,47 @@ class KeycruxServer extends Server {
     // ok
     res.result = "ok";
   }
+
+  protected async has(req: Request, res: Reply) {
+    if (!req.params.PCR4) throw new Error("Specify pcr4");
+
+    let count = 0;
+    let countDebug = 0;
+    const keysFromPCR4 = this.pcr4.get(req.params.pcr4) || new Set();
+    for (const key of keysFromPCR4) {
+      const data = this.data.get(key);
+      if (!data) throw new Error("Internal error, wrong PCR4 index");
+
+      // wrong ec2 instance? skip
+      if (req.params.PCR4 !== data.PCR4) continue;
+
+      // debug mismatch
+      if (this.isDebug(data)) countDebug++;
+      else count++;
+    }
+
+    res.result = {
+      count,
+      countDebug,
+    };
+  }
+
+  protected async status(req: Request, res: Reply) {
+    let count = 0;
+    let countDebug = 0;
+    let PCR4s = new Set<string>();
+    for (const data of this.data.values()) {
+      PCR4s.add(data.PCR4);
+      if (this.isDebug(data)) countDebug++;
+      else count++;
+    }
+
+    res.result = {
+      countPCR4: PCR4s.size,
+      count,
+      countDebug,
+    };
+  }
 }
 
 async function startBackground(server: KeycruxServer) {

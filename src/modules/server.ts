@@ -41,6 +41,14 @@ export class Server {
     throw new Error("Method not implemented");
   }
 
+  protected async has(req: Request, res: Reply) {
+    throw new Error("Method not implemented");
+  }
+
+  protected async status(req: Request, res: Reply) {
+    throw new Error("Method not implemented");
+  }
+
   private async handle(req: Request, res: Reply) {
     switch (req.method) {
       case "ping":
@@ -49,6 +57,10 @@ export class Server {
         return this.get(req, res);
       case "set":
         return this.set(req, res);
+      case "has":
+        return this.has(req, res);
+      case "status":
+        return this.status(req, res);
       default:
         throw new Error("Invalid method");
     }
