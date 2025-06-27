@@ -76,10 +76,8 @@ export class Relay {
       e.reason,
       e.wasClean
     );
-    setTimeout(() => {
-      // stop if disposed
-      if (this.ws) this.connect();
-    }, PAUSE);
+
+    if (this.ws) setTimeout(() => this.connect(), PAUSE);
   }
 
   private onError(e: any) {

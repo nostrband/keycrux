@@ -292,12 +292,12 @@ export async function startEnclave(opts: {
 }
 
 // main
-export function mainEnclave(argv: string[]) {
+export async function mainEnclave(argv: string[]) {
   if (!argv.length) throw new Error("Service not specified");
   if (argv[0] === "run") {
     const proxyUrl = argv?.[1] || "socks://127.0.0.1:1080";
     const parentUrl = argv?.[2] || "ws://127.0.0.1:2080";
     const relayUrl = argv?.[3] || "wss://relay.enclaved.org";
-    startEnclave({ proxyUrl, parentUrl, relayUrl });
+    return startEnclave({ proxyUrl, parentUrl, relayUrl });
   }
 }

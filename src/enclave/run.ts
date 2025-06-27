@@ -13,4 +13,7 @@ global.WebSocket ??= WebSocket;
 const proxyUrl = process.argv?.[2] || "socks://127.0.0.1:1080";
 const parentUrl = process.argv?.[3] || "ws://127.0.0.1:2080";
 const relayUrl = process.argv?.[4] || "wss://relay.enclaved.org";
-startEnclave({ proxyUrl, parentUrl, relayUrl });
+startEnclave({ proxyUrl, parentUrl, relayUrl }).catch(e => {
+  console.error("Failed, terminating", e);
+  throw e;
+});

@@ -23,13 +23,7 @@ class ParentServer {
   private wss: WebSocketServer;
   private dir: string;
 
-  constructor({
-    port,
-    dir = "./instance/",
-  }: {
-    port: number;
-    dir?: string;
-  }) {
+  constructor({ port, dir = "./instance/" }: { port: number; dir?: string }) {
     this.dir = dir;
     this.wss = new WebSocketServer({ port });
     this.wss.on("connection", this.onConnect.bind(this));
@@ -103,8 +97,7 @@ class ParentServer {
     if (prodEnclave) {
       verifyBuild(attData, build!);
       verifyInstance(attData, instance!);
-      for (const release of releases)
-        verifyRelease(attData, release);
+      for (const release of releases) verifyRelease(attData, release);
     }
 
     const relays = await fetchOutboxRelays([build!.pubkey, instance!.pubkey]);
@@ -116,7 +109,7 @@ class ParentServer {
       instance,
       releases,
       instanceAnnounceRelays: relays,
-      prod
+      prod,
     });
   }
 
@@ -157,15 +150,18 @@ function startParentServer(port: number) {
 function startProxyServer(port: number) {
   console.log("starting proxy on", port);
   const server = socks5.createServer();
-  server.listen(port);
+  return server.listen(port);
 }
 
-export function mainParent(argv: string[]) {
+export async function mainParent(argv: string[]) {
   if (!argv.length) throw new Error("Service not specified");
   if (argv[0] === "run") {
     const socksPort = Number(argv?.[1]) || 1080;
     const parentPort = Number(argv?.[2]) || 2080;
-    startProxyServer(socksPort);
     startParentServer(parentPort);
+    startProxyServer(socksPort).catch((e: any) => {
+      console.error(e);
+      process.exit(-1);
+    });
   }
 }

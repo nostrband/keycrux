@@ -273,7 +273,7 @@ async function ensureInstanceSignature(dir: string) {
   fs.writeFileSync(dir + "/instance.json", JSON.stringify(event));
 }
 
-export function mainCli(argv: string[]) {
+export async function mainCli(argv: string[]) {
   if (!argv.length) throw new Error("Command not specified");
 
   const method = argv[0];
