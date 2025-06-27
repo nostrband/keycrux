@@ -116,7 +116,6 @@ export async function getInfo(parentUrl: string) {
         } catch (e: any) {
           console.log("onopen error", e);
           err(e.message || e.toString());
-        } finally {
           ws.close();
         }
       };
