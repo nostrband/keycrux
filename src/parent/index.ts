@@ -159,9 +159,7 @@ export async function mainParent(argv: string[]) {
     const socksPort = Number(argv?.[1]) || 1080;
     const parentPort = Number(argv?.[2]) || 2080;
     startParentServer(parentPort);
-    startProxyServer(socksPort).catch((e: any) => {
-      console.error(e);
-      process.exit(-1);
-    });
+    startProxyServer(socksPort);
+    return new Promise(ok => {});
   }
 }
