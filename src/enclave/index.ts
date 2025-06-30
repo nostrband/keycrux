@@ -217,7 +217,7 @@ class KeycruxServer extends Server {
 
     let count = 0;
     let countDebug = 0;
-    const keysFromPCR4 = this.pcr4.get(req.params.pcr4) || new Set();
+    const keysFromPCR4 = this.pcr4.get(req.params.PCR4) || new Set();
     for (const key of keysFromPCR4) {
       const data = this.data.get(key);
       if (!data) throw new Error("Internal error, wrong PCR4 index");
