@@ -43,7 +43,7 @@ export async function publish(
 ) {
   const promises = (relays || DEFAULT_RELAYS).map((r) => {
     const relay = new Relay(r, agent);
-    return relay.publish(event).finally(() => relay.dispose());
+    return relay.publish(event).finally(() => relay[Symbol.dispose]());
   });
   const results = await Promise.allSettled(promises);
   if (!results.find((r) => r.status === "fulfilled"))
@@ -282,7 +282,7 @@ export async function fetchFromRelays(
       })
   );
   const results = await Promise.allSettled(reqs);
-  for (const r of relays) r.dispose();
+  for (const r of relays) r[Symbol.dispose]();
   const events = results
     .filter((r) => r.status === "fulfilled")
     .map((r) => (r as PromiseFulfilledResult<Event[]>).value)
